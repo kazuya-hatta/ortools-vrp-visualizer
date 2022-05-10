@@ -2,7 +2,7 @@
 
 ### Prerequisites
 - Python3
-- Google Cloud Platform Account ()
+- Google Cloud Platform Account
 
 ### Setup Environment
 
