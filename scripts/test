@@ -1,0 +1,19 @@
+#!/bin/sh
+
+VENV="venv"
+
+title() {
+    echo ""
+    printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' "#"
+    echo "#"
+    echo "# $1"
+    echo "#"
+    printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' "#"
+    echo ""
+}
+
+title "pytest"
+"$VENV/bin/pytest"
+
+title "mypy"
+"$VENV/bin/mypy" ortools_viz_backend --ignore-missing-imports

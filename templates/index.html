@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRP Visualizer</title>
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather" />
+    <style>
+        html,
+        body,
+        .container {
+            font-family: 'Merriweather';
+            height: 96%;
+            width: 96%;
+            margin: auto;
+            padding: 2%;
+            max-width: 60rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-areas:
+                "header"
+                "inputform"
+                "map-canvas";
+            grid-template-rows: 30px 1fr 1fr;
+        }
+
+        .header {
+            grid-area: "header";
+
+            font-size: large;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        .header > a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .inputform {
+            grid-area: "inputform";
+        }
+
+        .map-canvas {
+            grid-area: "map-canvas";
+            margin: auto;
+        }
+
+        .route-info {
+            grid-area: "route-info";
+        }
+
+        input {
+            width: 100%;
+            padding: 5px 5px;
+            margin: 3px 3px;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <a href="/">ortools visualizer - Vehicle Routing Problem</a>
+        </header>
+
+        <form class="inputform" method="POST">
+            Depot: <input id="form-input-depot" type="text" name="depot" required onchange="localStorage.setItem('depot', this.value)"><br>
+            Vehicles: <input id="form-input-vehicles" type="number" name="vehicles" min="1" max="10" required onchange="localStorage.setItem('vehicles', this.value)"><br>
+            
+            <div id="waypoints"></div>
+
+            <input type="submit" value="Visualize">
+        </form>
+
+        <div class="map-canvas">
+        {% if image is defined %}
+        <img src="data:img/png;base64,{{ image }}">
+        {% endif %}
+
+        {% if error is defined %}
+        {{ error }}
+        {% endif %}
+        </div>
+
+    </div>
+
+    <script>
+        renderWaypoints();
+
+        document.getElementById("form-input-depot").value = localStorage.getItem("depot") || "Roppoingi Station";
+        document.getElementById("form-input-vehicles").value = localStorage.getItem("vehicles") || 3;
+
+
+        function renderWaypoints() {
+            let waypoints = JSON.parse(localStorage.getItem("waypoints")) || ["Tokyo Tower", "Tokyo Skytree"];
+            let html = ""
+            for (let i = 0; i < waypoints.length; i++) {
+                let w = waypoints[i];
+                html += `
+                    <button
+                        id="form-button-delete-waypoint-${i+1}"
+                        type="button"
+                        onclick="handleWaypointDelete(${i})"
+                        ${waypoints.length === 1 ? "disabled" : ""}
+                    >
+                        x
+                    </button>
+                    Waypoint-${i+1}:
+                    <input
+                        id="form-input-waypoint-${i+1}"
+                        type="text"
+                        name="waypoint-${i+1}"
+                        value="${w}"
+                        onchange="handleWaypointUpdate(${i}, this.value)"
+                        required
+                    >
+                    <br>
+                `;
+            }
+            html += `
+                <button
+                    id="form-button-add-waypoint"
+                    type="button"
+                    onclick="handleWaypointAdd()"
+                >
+                    Add Waypoint
+                </button>
+            `;
+            let div = document.getElementById("waypoints");
+            div.innerHTML = html;
+            localStorage.setItem("waypoints", JSON.stringify(waypoints));
+        }
+
+        function handleWaypointAdd() {
+            let waypoints = JSON.parse(localStorage.getItem("waypoints"));
+            waypoints.push("");
+            localStorage.setItem("waypoints", JSON.stringify(waypoints));
+            renderWaypoints();
+        }
+
+        function handleWaypointUpdate(ix, val) {
+            let waypoints = JSON.parse(localStorage.getItem("waypoints"));
+            waypoints[ix] = val;
+            localStorage.setItem("waypoints", JSON.stringify(waypoints));
+        }
+
+        function handleWaypointDelete(ix) {
+            let waypoints = JSON.parse(localStorage.getItem("waypoints"));
+            waypoints = waypoints.filter((_, i) => i !== ix);
+            localStorage.setItem("waypoints", JSON.stringify(waypoints));
+            renderWaypoints();
+        }
+    </script>
+
+</body>
+</html>
