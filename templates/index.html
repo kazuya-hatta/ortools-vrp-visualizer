@@ -5,17 +5,16 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VRP Visualizer</title>
-    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Merriweather" />
     <style>
         html,
         body,
         .container {
-            font-family: 'Merriweather';
+            font-family: 'Helvetica';
             height: 96%;
             width: 96%;
             margin: auto;
             padding: 2%;
-            max-width: 60rem;
+            max-width: 64rem;
         }
 
         .container {
@@ -23,34 +22,62 @@
             grid-template-areas:
                 "header"
                 "inputform"
-                "map-canvas";
-            grid-template-rows: 30px 1fr 1fr;
+                "map-canvas"
+                "route-info";
+            grid-template-rows: 100px 1fr 1fr 1fr;
         }
 
-        .header {
-            grid-area: "header";
+        .container .header {
+            grid-area: header;
 
             font-size: large;
             font-weight: bold;
             text-decoration: underline;
         }
-
-        .header > a {
+        .container .header p {
+            font-size: medium;
+            font-weight: normal;
+        }
+        .container .header a {
             text-decoration: none;
             color: inherit;
         }
 
-        .inputform {
-            grid-area: "inputform";
+        .container .inputform {
+            grid-area: inputform;
+        }
+        .container .inputform .delete-button {
+            border-radius: 50%;
+            border: none;
+        }
+        .vehicle-hours-tooltip-label,
+        .vehicle-hours-tooltip {
+            font-size: 80%;
+        }
+        .vehicle-hours-tooltip {
+            visibility: hidden;
+            background-color: lightblue;
+        }
+        .vehicle-hours-tooltip-label:hover .vehicle-hours-tooltip {
+            visibility: visible;
         }
 
-        .map-canvas {
-            grid-area: "map-canvas";
+        .container .map-canvas {
+            grid-area: map-canvas;
             margin: auto;
         }
 
-        .route-info {
-            grid-area: "route-info";
+        .container .route-info {
+            grid-area: route-info;
+        }
+        .container .route-info table {
+            border-collapse: collapse;
+        }
+        .container .route-info td,
+        .container .route-info th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
         }
 
         input {
@@ -70,34 +97,99 @@
     <div class="container">
         <header class="header">
             <a href="/">ortools visualizer - Vehicle Routing Problem</a>
+            <p><a href="https://developers.google.com/optimization/routing/vrp" target="_blank">Read the ortools document: &#x2192;</a></p>
+            <hr>
         </header>
 
         <form class="inputform" method="POST">
-            Depot: <input id="form-input-depot" type="text" name="depot" required onchange="localStorage.setItem('depot', this.value)"><br>
-            Vehicles: <input id="form-input-vehicles" type="number" name="vehicles" min="1" max="10" required onchange="localStorage.setItem('vehicles', this.value)"><br>
-            
+            <label>Depot:
+                <input id="form-input-depot" type="text" name="depot" placeholder="Tokyo Station, Japan" required onchange="localStorage.setItem('depot', this.value)">
+            </label><br>
+            <label>Vehicles:
+                <input id="form-input-vehicles" type="number" name="vehicles" min="1" max="10" placeholder="3" required onchange="localStorage.setItem('vehicles', this.value)">
+            </label><br>
+            <label>Per-vehicle hours:
+                <span class="vehicle-hours-tooltip-label">(What is this?)
+                <span class="vehicle-hours-tooltip">Number of hours each vehicle can operate</span></span><br>
+                <input id="form-input-vehicle-hours" type="number" name="vehicle-hours" step="0.01" min="0" max="24" placeholder="6" required onchange="localStorage.setItem('vehicle-hours', this.value)">
+            </label><br>
             <div id="waypoints"></div>
 
             <input type="submit" value="Visualize">
+            <br>
+            <br>
+            <hr>
+            <br>
         </form>
 
-        <div class="map-canvas">
-        {% if image is defined %}
-        <img src="data:img/png;base64,{{ image }}">
-        {% endif %}
-
         {% if error is defined %}
-        {{ error }}
-        {% endif %}
+        Error: {{ error }}
+
+        {% else %}
+
+        <div class="map-canvas">
+            {% if map_image is defined %}
+            <img src="data:img/png;base64,{{ map_image }}">
+            {% else %}
+            Click "Visualize" to show map & route information.
+            {% endif %}
         </div>
 
+        <div class="route-info">
+            {% if params is defined %}
+            <br>
+            <table>
+                <tr><th>Vehicles</th><td>{{ params["vehicles"] }}</td></tr>
+                <tr><th>Per-vehicle hours</th><td>{{ params["vehicle_hours"] }}</td></tr>
+                <tr><th>Depot</th><td>{{ params["depot"][0] }}<br>({{ params["depot"][1] }})</td></tr>
+                <tr>
+                    <th>Waypoints</th>
+                    <td>
+                        <ul>
+                        {% for k, v in params["waypoints"].items() %}
+                            <li>{{ k }}
+                                <ul>
+                                    <li>{{ v[0] }}<br>({{ v[1] }})</li>
+                                </ul>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+
+                {% if result is defined %}
+                <tr>
+                    <th>Routes</th>
+                    <td>
+                    {% for elem in result %}
+                        <ul>
+                            <li>
+                                Vehicle-{{ elem["vehicle_id"] }} (Total: {{ elem["route_total_cost_formatted"] }}):
+                                <ol>
+                                {% for route in elem["routes"] %}
+                                    <li>{{ route["origin_label"] }} -> {{ route["destination_label"] }} ({{ route["route_cost_formatted"] }})</li>
+                                {% endfor %}
+                                </ol>
+                            </li>
+                        </ul>
+                    {% endfor %}
+                </td></tr>
+                {% endif %}
+            </table>
+            {% endif %}
+        </div>
+
+        {% endif %}
+
     </div>
+
 
     <script>
         renderWaypoints();
 
         document.getElementById("form-input-depot").value = localStorage.getItem("depot") || "Roppoingi Station";
         document.getElementById("form-input-vehicles").value = localStorage.getItem("vehicles") || 3;
+        document.getElementById("form-input-vehicle-hours").value = localStorage.getItem("vehicle-hours") || 8;
 
 
         function renderWaypoints() {
@@ -108,21 +200,25 @@
                 html += `
                     <button
                         id="form-button-delete-waypoint-${i+1}"
+                        class="delete-button"
                         type="button"
                         onclick="handleWaypointDelete(${i})"
                         ${waypoints.length === 1 ? "disabled" : ""}
                     >
                         x
                     </button>
+                    <label>
                     Waypoint-${i+1}:
                     <input
                         id="form-input-waypoint-${i+1}"
                         type="text"
                         name="waypoint-${i+1}"
                         value="${w}"
+                        placeholder="Tokyo Skytree, Japan"
                         onchange="handleWaypointUpdate(${i}, this.value)"
                         required
                     >
+                    </label>
                     <br>
                 `;
             }

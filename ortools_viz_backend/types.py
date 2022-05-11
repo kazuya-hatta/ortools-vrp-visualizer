@@ -1,34 +1,31 @@
-from typing import TypedDict, List
+from typing import TypedDict, List, Dict, Tuple
 
 
-class _GMapsDistanceMatrixRowElementItem(TypedDict):
-    text: str
-    value: int
+class VRPSimpleInputData(TypedDict):
+    distance_matrix: List[List[int]]
+    num_vehicles: int
+    depot: int
+    max_cost_per_vehicle: int
 
 
-class _GMapsDistanceMatrixRowElement(TypedDict):
-    distance: _GMapsDistanceMatrixRowElementItem
-    duration: _GMapsDistanceMatrixRowElementItem
-    status: str
+class VRPSimpleOutputSingleRoute(TypedDict):
+    origin: int
+    destination: int
+    route_cost: int
 
 
-class _GMapsDistanceMatrixRow(TypedDict):
-    elements: List[_GMapsDistanceMatrixRowElement]
+class VRPSimpleOutputElem(TypedDict):
+    vehicle_id: int
+    vehicle_color: str
+    routes: List[VRPSimpleOutputSingleRoute]
+    route_total_cost: int
 
 
-class GMapsDistanceMatrix(TypedDict):
-    destination_addresses: List[str]
-    origin_addresses: List[str]
-    rows: List[_GMapsDistanceMatrixRow]
-    status: str
+VRPSimpleOutput = List[VRPSimpleOutputElem]
 
 
-DurationMatrix = List[List[int]]
-
-
-class RoutingSolutionElem(TypedDict):
-    route: List[str]
-    total_time: int
-
-
-RoutingSolution = List[RoutingSolutionElem]
+class VRPSimpleOutputParams(TypedDict):
+    vehicles: int
+    vehicle_hours: int
+    depot: Tuple[str, str]
+    waypoints: Dict[str, Tuple[str, str]]

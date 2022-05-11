@@ -1,80 +1,109 @@
-import base64
-import io
 from urllib.parse import parse_qs
-from typing import Optional, List
+from typing import Optional
+from datetime import timedelta
 
-import googlemaps
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.templating import Jinja2Templates, _TemplateResponse
 from starlette.routing import Route
 
 from ortools_viz_backend.config import DEBUG
-from ortools_viz_backend import vrp, gmaps
+from ortools_viz_backend import vrp, types, gmaps
 
 
 templates = Jinja2Templates(directory="templates")
-colors = [
-    "red",
-    "blue",
-    "green",
-    "purple",
-    "orange",
-    "white",
-    "black",
-    "yellow",
-    "aliceblue",
-    "gray",
-]
 
 
 async def index(request: Request) -> Optional[_TemplateResponse]:
     if request.method == "GET":
+        print("GET")
         return templates.TemplateResponse("index.html", {"request": request})
 
     elif request.method == "POST":
+        print("POST")
+
+        # Parse form body
         body = await request.body()
         body_parsed = parse_qs(body.decode("utf-8"))
         vehicles = int(body_parsed["vehicles"][0])
         depot = body_parsed["depot"][0]
-        waypoints = {
-            k: v[0] for k, v in body_parsed.items() if k.startswith("waypoint-")
+        vehicle_hours = float(body_parsed["vehicle-hours"][0])
+        waypoints = [v[0] for k, v in body_parsed.items() if k.startswith("waypoint-")]
+
+        # Format addresses
+        orig_addresses = [depot, *waypoints]
+        formatted_addresses = gmaps.get_formatted_addresses(orig_addresses)
+        print(dict(zip(orig_addresses, formatted_addresses)))
+
+        # Instantiate the data problem.
+        data: types.VRPSimpleInputData = {}
+        data["distance_matrix"] = gmaps.get_distance_matrix(
+            addresses=formatted_addresses,
+            key="duration",
+        )
+        data["num_vehicles"] = vehicles
+        data["depot"] = 0
+        data["max_cost_per_vehicle"] = int(vehicle_hours * 60 * 60)
+        print(data)
+
+        # Solve
+        result = vrp.solve_vrp_simple(data)
+
+        # Compile return params
+        params: types.VRPSimpleOutputParams = {}
+        params["vehicles"] = vehicles
+        params["vehicle_hours"] = vehicle_hours
+        params["depot"] = (orig_addresses[0], formatted_addresses[0])
+        params["waypoints"] = {
+            f"Waypoint-{i}": v
+            for i, v in enumerate(zip(orig_addresses[1:], formatted_addresses[1:]), 1)
         }
 
-        try:
-            result = vrp.solve_vrp_simple(
-                min(vehicles, len(waypoints)), depot, waypoints
-            )
-
-            markers: List[googlemaps.maps.StaticMapMarker] = []
-            paths: List[googlemaps.maps.StaticMapPath] = []
-
-            markers.append(googlemaps.maps.StaticMapMarker([depot], color=colors[0], label="D"))
-            for i, v in enumerate(result, 1):
-                markers.append(googlemaps.maps.StaticMapMarker(v["route"][:-1], color=colors[i], label=str(i)))
-                paths.append(googlemaps.maps.StaticMapPath([depot, *v["route"]], color=colors[i]))
-
-            map_data = gmaps.get_client().static_map(
-                size=(1200, 1000), markers=markers, path=paths
-            )
-
-            f = io.BytesIO()
-            for chunk in map_data:
-                if chunk:
-                    f.write(chunk)
-            img = base64.b64encode(f.getvalue()).decode("utf8")
-
+        if not result:
             return templates.TemplateResponse(
-                "index.html", {"request": request, "image": img}
+                "index.html",
+                {"request": request, "error": "no result", "params": params},
             )
 
-        except Exception as e:
-            return templates.TemplateResponse(
-                "index.html", {"request": request, "error": e}
-            )
+        # Populate result for route info rendering
+        # TODO: cleanup
+        # fmt: off
+        labels = ["depot", *(f"Waypoint-{i+1}" for i in range(len(waypoints)))]
+        result = [
+            {
+                **elem,
+                "route_total_cost_formatted": str(timedelta(seconds=elem["route_total_cost"])),
+                "routes": [
+                    {
+                        **route,
+                        "origin_label": labels[route["origin"]],
+                        "destination_label": labels[route["destination"]],
+                        "origin_formatted_address": formatted_addresses[route["origin"]],
+                        "destination_formatted_address": formatted_addresses[route["destination"]],
+                        "route_cost_formatted": str(timedelta(seconds=route["route_cost"])),
+                    }
+                    for route in elem["routes"]
+                ],
+            }
+            for elem in result
+        ]
+        print(result)
+        # fmt: on
 
-    else:
-        return None
+        # Map result
+        map_image = await gmaps.get_static_map(
+            result, formatted_addresses, size=(700, 300)
+        )
+
+        return templates.TemplateResponse(
+            "index.html",
+            {
+                "request": request,
+                "map_image": map_image,
+                "result": result,
+                "params": params,
+            },
+        )
 
 
 app = Starlette(
