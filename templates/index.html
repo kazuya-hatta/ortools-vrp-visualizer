@@ -103,10 +103,13 @@
         </header>
 
         <form class="inputform" method="POST">
+            <label>Departure Time:
+                <input id="form-input-datetime" type="datetime-local" name="datetime-local" required onchange="localStorage.setItem('datetime', this.value)">
+            </label>
             <label>Depot:
                 <input id="form-input-depot" type="text" name="depot" placeholder="Tokyo Station, Japan" required onchange="localStorage.setItem('depot', this.value)">
             </label><br>
-            <label>Vehicles:
+            <label># of Vehicles:
                 <input id="form-input-vehicles" type="number" name="vehicles" min="1" max="10" placeholder="3" required onchange="localStorage.setItem('vehicles', this.value)">
             </label><br>
             <label>Per-vehicle hours:
@@ -140,6 +143,7 @@
             {% if params is defined %}
             <br>
             <table>
+                <tr><th>Departure Time</th><td>{{ params["departure_time"] }}</td></tr>
                 <tr><th>Vehicles</th><td>{{ params["vehicles"] }}</td></tr>
                 <tr><th>Per-vehicle hours</th><td>{{ params["vehicle_hours"] }}</td></tr>
                 <tr><th>Depot</th><td>{{ params["depot"][0] }}<br>({{ params["depot"][1] }})</td></tr>
@@ -188,6 +192,7 @@
     <script>
         renderWaypoints();
 
+        document.getElementById("form-input-datetime").value = localStorage.getItem("datetime");
         document.getElementById("form-input-depot").value = localStorage.getItem("depot") || "Roppoingi Station";
         document.getElementById("form-input-vehicles").value = localStorage.getItem("vehicles") || 3;
         document.getElementById("form-input-vehicle-hours").value = localStorage.getItem("vehicle-hours") || 8;

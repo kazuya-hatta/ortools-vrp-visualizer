@@ -1,6 +1,6 @@
 from urllib.parse import parse_qs
 from typing import Optional
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -25,6 +25,7 @@ async def index(request: Request) -> Optional[_TemplateResponse]:
         # Parse form body
         body = await request.body()
         body_parsed = parse_qs(body.decode("utf-8"))
+        datetime_local = datetime.strptime(body_parsed["datetime-local"][0], '%Y-%m-%dT%H:%M')
         vehicles = int(body_parsed["vehicles"][0])
         depot = body_parsed["depot"][0]
         vehicle_hours = float(body_parsed["vehicle-hours"][0])
@@ -40,6 +41,9 @@ async def index(request: Request) -> Optional[_TemplateResponse]:
         data["distance_matrix"] = gmaps.get_distance_matrix(
             addresses=formatted_addresses,
             key="duration",
+            api_kwargs=dict(
+                departure_time=datetime_local
+            )
         )
         data["num_vehicles"] = vehicles
         data["depot"] = 0
@@ -51,6 +55,7 @@ async def index(request: Request) -> Optional[_TemplateResponse]:
 
         # Compile return params
         params: types.VRPSimpleOutputParams = {}
+        params["departure_time"] = str(datetime_local)
         params["vehicles"] = vehicles
         params["vehicle_hours"] = vehicle_hours
         params["depot"] = (orig_addresses[0], formatted_addresses[0])

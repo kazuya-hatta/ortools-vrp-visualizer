@@ -1,6 +1,7 @@
 import base64
 import io
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
+from datetime import datetime
 
 import googlemaps
 import httpx
@@ -35,7 +36,7 @@ def get_client() -> googlemaps.Client:
     return _client
 
 
-def get_distance_matrix(addresses: List[str], key: str = "distance") -> List[List[int]]:
+def get_distance_matrix(addresses: List[str], key: str = "distance", api_kwargs: Dict[Any, Any] = {}) -> List[List[int]]:
     """Get or-tools compatible distance matrix from GMaps Distance Matrix API"""
 
     assert key in (
@@ -43,7 +44,7 @@ def get_distance_matrix(addresses: List[str], key: str = "distance") -> List[Lis
         "duration",
     ), f"`key` must be either 'distance' or 'duration'. Received '{key}'"
 
-    mtrx = get_client().distance_matrix(origins=addresses, destinations=addresses)
+    mtrx = get_client().distance_matrix(origins=addresses, destinations=addresses, **api_kwargs)
 
     distance_matrix = []
     for row in mtrx["rows"]:
